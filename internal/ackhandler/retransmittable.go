@@ -6,15 +6,15 @@ import "github.com/lucas-clemente/quic-go/internal/wire"
 func stripNonRetransmittableFrames(fs []wire.Frame) []wire.Frame {
 	res := make([]wire.Frame, 0, len(fs))
 	for _, f := range fs {
-		if IsFrameRetransmittable(f) {
+		if isFrameRetransmittable(f) {
 			res = append(res, f)
 		}
 	}
 	return res
 }
 
-// IsFrameRetransmittable returns true if the frame should be retransmitted.
-func IsFrameRetransmittable(f wire.Frame) bool {
+// isFrameRetransmittable returns true if the frame should be retransmitted.
+func isFrameRetransmittable(f wire.Frame) bool {
 	switch f.(type) {
 	case *wire.AckFrame:
 		return false
@@ -26,7 +26,7 @@ func IsFrameRetransmittable(f wire.Frame) bool {
 // HasRetransmittableFrames returns true if at least one frame is retransmittable.
 func HasRetransmittableFrames(fs []wire.Frame) bool {
 	for _, f := range fs {
-		if IsFrameRetransmittable(f) {
+		if isFrameRetransmittable(f) {
 			return true
 		}
 	}

@@ -24,7 +24,7 @@ var _ = Describe("retransmittable frames", func() {
 		fName := reflect.ValueOf(f).Elem().Type().Name()
 
 		It("works for "+fName, func() {
-			Expect(IsFrameRetransmittable(f)).To(Equal(e))
+			Expect(isFrameRetransmittable(f)).To(Equal(e))
 		})
 
 		It("stripping non-retransmittable frames works for "+fName, func() {
