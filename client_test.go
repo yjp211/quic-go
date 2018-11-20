@@ -49,7 +49,7 @@ var _ = Describe("Client", func() {
 	// generate a packet sent by the server that accepts the QUIC version suggested by the client
 	acceptClientVersionPacket := func(connID protocol.ConnectionID) []byte {
 		b := &bytes.Buffer{}
-		err := (&wire.Header{
+		err := (&wire.ExtendedHeader{
 			DestConnectionID: connID,
 			PacketNumber:     1,
 			PacketNumberLen:  1,
@@ -61,7 +61,7 @@ var _ = Describe("Client", func() {
 	composeVersionNegotiationPacket := func(connID protocol.ConnectionID, versions []protocol.VersionNumber) *receivedPacket {
 		return &receivedPacket{
 			rcvTime: time.Now(),
-			header: &wire.Header{
+			header: &wire.ExtendedHeader{
 				IsVersionNegotiation: true,
 				DestConnectionID:     connID,
 				SupportedVersions:    versions,
@@ -511,7 +511,7 @@ var _ = Describe("Client", func() {
 			manager := NewMockPacketHandlerManager(mockCtrl)
 			manager.EXPECT().Add(gomock.Any(), gomock.Any()).Do(func(id protocol.ConnectionID, handler packetHandler) {
 				go handler.handlePacket(&receivedPacket{
-					header: &wire.Header{
+					header: &wire.ExtendedHeader{
 						IsLongHeader:         true,
 						Type:                 protocol.PacketTypeRetry,
 						Token:                []byte("foobar"),
@@ -571,7 +571,7 @@ var _ = Describe("Client", func() {
 			manager := NewMockPacketHandlerManager(mockCtrl)
 			manager.EXPECT().Add(gomock.Any(), gomock.Any()).Do(func(id protocol.ConnectionID, handler packetHandler) {
 				go handler.handlePacket(&receivedPacket{
-					header: &wire.Header{
+					header: &wire.ExtendedHeader{
 						IsLongHeader:         true,
 						Type:                 protocol.PacketTypeRetry,
 						Token:                []byte("foobar"),
@@ -679,7 +679,7 @@ var _ = Describe("Client", func() {
 				sess.EXPECT().handlePacket(gomock.Any())
 				cl.session = sess
 				cl.config = &Config{}
-				ph := &wire.Header{
+				ph := &wire.ExtendedHeader{
 					PacketNumber:     1,
 					PacketNumberLen:  protocol.PacketNumberLen2,
 					DestConnectionID: connID,
@@ -739,7 +739,7 @@ var _ = Describe("Client", func() {
 		cl.session = NewMockQuicSession(mockCtrl) // don't EXPECT any handlePacket calls
 		connID2 := protocol.ConnectionID{8, 7, 6, 5, 4, 3, 2, 1}
 		Expect(connID).ToNot(Equal(connID2))
-		hdr := &wire.Header{
+		hdr := &wire.ExtendedHeader{
 			DestConnectionID: connID2,
 			SrcConnectionID:  connID,
 			PacketNumber:     1,
