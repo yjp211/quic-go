@@ -50,9 +50,9 @@ var _ = Describe("Client", func() {
 	acceptClientVersionPacket := func(connID protocol.ConnectionID) []byte {
 		b := &bytes.Buffer{}
 		err := (&wire.ExtendedHeader{
-			DestConnectionID: connID,
-			PacketNumber:     1,
-			PacketNumberLen:  1,
+			Header:          wire.Header{DestConnectionID: connID},
+			PacketNumber:    1,
+			PacketNumberLen: 1,
 		}).Write(b, protocol.PerspectiveServer, protocol.VersionWhatever)
 		Expect(err).ToNot(HaveOccurred())
 		return b.Bytes()
@@ -517,7 +517,7 @@ var _ = Describe("Client", func() {
 						DestConnectionID: id,
 					},
 					extHdr: &wire.ExtendedHeader{
-						IsLongHeader:         true,
+						Header:               wire.Header{IsLongHeader: true},
 						Type:                 protocol.PacketTypeRetry,
 						Token:                []byte("foobar"),
 						OrigDestConnectionID: connID,
@@ -581,11 +581,13 @@ var _ = Describe("Client", func() {
 						Version:          cl.version,
 					},
 					extHdr: &wire.ExtendedHeader{
-						IsLongHeader:         true,
+						Header: wire.Header{
+							IsLongHeader: true,
+							Version:      protocol.VersionTLS,
+						},
 						Type:                 protocol.PacketTypeRetry,
 						Token:                []byte("foobar"),
 						OrigDestConnectionID: connID,
-						Version:              protocol.VersionTLS,
 					},
 				})
 			}).AnyTimes()
