@@ -21,17 +21,16 @@ var _ = Describe("Packet Handler Map", func() {
 
 	getPacket := func(connID protocol.ConnectionID) []byte {
 		buf := &bytes.Buffer{}
-		err := (&wire.ExtendedHeader{
+		Expect((&wire.ExtendedHeader{
 			Header: wire.Header{
 				IsLongHeader:     true,
+				Type:             protocol.PacketTypeHandshake,
 				DestConnectionID: connID,
-				Version:          protocol.VersionWhatever,
+				Length:           1,
+				Version:          protocol.VersionTLS,
 			},
-			Length:          1,
-			Type:            protocol.PacketTypeHandshake,
 			PacketNumberLen: protocol.PacketNumberLen1,
-		}).Write(buf, protocol.PerspectiveServer, protocol.VersionWhatever)
-		Expect(err).ToNot(HaveOccurred())
+		}).Write(buf, protocol.PerspectiveServer, protocol.VersionTLS)).To(Succeed())
 		return buf.Bytes()
 	}
 
@@ -136,11 +135,11 @@ var _ = Describe("Packet Handler Map", func() {
 			hdr := &wire.ExtendedHeader{
 				Header: wire.Header{
 					IsLongHeader:     true,
+					Type:             protocol.PacketTypeHandshake,
+					Length:           1000,
 					DestConnectionID: connID,
-					Version:          protocol.VersionWhatever,
+					Version:          protocol.VersionTLS,
 				},
-				Type:            protocol.PacketTypeHandshake,
-				Length:          1000,
 				PacketNumberLen: protocol.PacketNumberLen2,
 			}
 			buf := &bytes.Buffer{}
@@ -161,10 +160,10 @@ var _ = Describe("Packet Handler Map", func() {
 				Header: wire.Header{
 					IsLongHeader:     true,
 					DestConnectionID: connID,
-					Version:          protocol.VersionWhatever,
+					Type:             protocol.PacketTypeHandshake,
+					Length:           3,
+					Version:          protocol.VersionTLS,
 				},
-				Type:            protocol.PacketTypeHandshake,
-				Length:          3,
 				PacketNumberLen: protocol.PacketNumberLen4,
 			}
 			buf := &bytes.Buffer{}
@@ -186,10 +185,10 @@ var _ = Describe("Packet Handler Map", func() {
 				Header: wire.Header{
 					IsLongHeader:     true,
 					DestConnectionID: connID,
-					Version:          protocol.VersionWhatever,
+					Type:             protocol.PacketTypeHandshake,
+					Length:           456,
+					Version:          protocol.VersionTLS,
 				},
-				Type:            protocol.PacketTypeHandshake,
-				Length:          456,
 				PacketNumberLen: protocol.PacketNumberLen1,
 			}
 			buf := &bytes.Buffer{}
