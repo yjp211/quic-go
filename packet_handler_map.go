@@ -213,7 +213,7 @@ func (h *packetHandlerMap) handlePacket(addr net.Addr, data []byte) error {
 	if !hdr.IsVersionNegotiation() {
 		r = bytes.NewReader(data)
 		var err error
-		extHdr, err = hdr.Parse(r, sentBy, version)
+		extHdr, err = hdr.ParseExtended(r, sentBy, version)
 		if err != nil {
 			return fmt.Errorf("error parsing extended header: %s", err)
 		}
