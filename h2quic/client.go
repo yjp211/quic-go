@@ -47,6 +47,8 @@ type client struct {
 
 	responses map[protocol.StreamID]chan *http.Response
 
+	active bool
+
 	logger utils.Logger
 }
 
@@ -78,6 +80,7 @@ func newClient(
 		headerErrored: make(chan struct{}),
 		dialer:        dialer,
 		logger:        utils.DefaultLogger.WithPrefix("client"),
+		active: true,
 	}
 }
 
@@ -100,7 +103,14 @@ func (c *client) dial() error {
 	}
 	c.requestWriter = newRequestWriter(c.headerStream, c.logger)
 	go c.handleHeaderStream()
+	go c.handleActive()
 	return nil
+}
+
+func (c *client) handleActive() {
+	ctx := c.session.Context()
+	<- ctx.Done()
+	c.SetUnActive()
 }
 
 func (c *client) handleHeaderStream() {
@@ -288,6 +298,14 @@ func (c *client) Close() error {
 		return nil
 	}
 	return c.session.Close()
+}
+
+func (c *client) IsActive() bool {
+	return c.active
+}
+
+func (c *client) SetUnActive()  {
+	c.active = false
 }
 
 // copied from net/transport.go

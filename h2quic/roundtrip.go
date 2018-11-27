@@ -12,6 +12,7 @@ import (
 	quic "github.com/lucas-clemente/quic-go"
 
 	"golang.org/x/net/http/httpguts"
+	"time"
 )
 
 type roundTripCloser interface {
@@ -46,7 +47,10 @@ type RoundTripper struct {
 	// If Dial is nil, quic.DialAddr will be used.
 	Dial func(network, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.Session, error)
 
-	clients map[string]roundTripCloser
+	MaxConn int
+	Timeout time.Duration
+
+	clients map[string]*ProxyPool
 }
 
 // RoundTripOpt are options for the Transport.RoundTripOpt method.
@@ -58,7 +62,6 @@ type RoundTripOpt struct {
 	OnlyCachedConn bool
 }
 
-var _ roundTripCloser = &RoundTripper{}
 
 // ErrNoCachedConn is returned when RoundTripper.OnlyCachedConn is set
 var ErrNoCachedConn = errors.New("h2quic: no cached connection was available")
@@ -100,11 +103,16 @@ func (r *RoundTripper) RoundTripOpt(req *http.Request, opt RoundTripOpt) (*http.
 	}
 
 	hostname := authorityAddr("https", hostnameFromRequest(req))
-	cl, err := r.getClient(hostname, opt.OnlyCachedConn)
+	cl, err := r.getClient(hostname)
 	if err != nil {
 		return nil, err
 	}
-	return cl.RoundTrip(req)
+	resp, err := cl.RoundTrip(req)
+	if err != nil {
+		cl.SetUnActive()
+	}
+	r.clients[hostname].Release(cl)
+	return resp, err
 }
 
 // RoundTrip does a round trip.
@@ -112,29 +120,34 @@ func (r *RoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	return r.RoundTripOpt(req, RoundTripOpt{})
 }
 
-func (r *RoundTripper) getClient(hostname string, onlyCached bool) (http.RoundTripper, error) {
+
+func (r *RoundTripper) getClient(hostname string) (*client, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
 	if r.clients == nil {
-		r.clients = make(map[string]roundTripCloser)
+		r.clients = make(map[string]*ProxyPool)
 	}
 
-	client, ok := r.clients[hostname]
-	if !ok {
-		if onlyCached {
-			return nil, ErrNoCachedConn
+	pl, ok := r.clients[hostname]
+	if  !ok {
+		timeout := r.Timeout
+		if timeout <= 0 {
+			timeout = time.Second * 10
 		}
-		client = newClient(
-			hostname,
-			r.TLSClientConfig,
-			&roundTripperOpts{DisableCompression: r.DisableCompression},
-			r.QuicConfig,
-			r.Dial,
-		)
-		r.clients[hostname] = client
+		maxConn := r.MaxConn
+		if maxConn <= 0 {
+			maxConn = 1000
+		}
+		pl = NewProxyPool(hostname, timeout, maxConn, newClientWrap, r)
+		r.clients[hostname] = pl
 	}
-	return client, nil
+	c, err := pl.Get(true)
+	if err != nil{
+		return nil, err
+	}
+	return c.(*client), nil
+
 }
 
 // Close closes the QUIC connections that this RoundTripper has used
@@ -142,12 +155,22 @@ func (r *RoundTripper) Close() error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	for _, client := range r.clients {
-		if err := client.Close(); err != nil {
-			return err
+		if err := client.Shutdown(); err != nil {
+			continue
 		}
 	}
 	r.clients = nil
 	return nil
+}
+
+func newClientWrap(hostname string, timeout time.Duration, r *RoundTripper) (ProxyConn, error){
+	return newClient(
+		hostname,
+		r.TLSClientConfig,
+		&roundTripperOpts{DisableCompression: r.DisableCompression},
+		r.QuicConfig,
+		r.Dial,
+	), nil
 }
 
 func closeRequestBody(req *http.Request) {
